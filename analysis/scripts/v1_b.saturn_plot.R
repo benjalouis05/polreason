@@ -90,6 +90,55 @@ compute_mac_bootstraps <- function(corr_list) {
 }
 
 
+#' Extract all pairwise absolute correlations from a correlation matrix
+#'
+#' @param R Square correlation matrix
+#' @return Numeric vector of absolute correlations (upper triangle only)
+extract_all_abs_cors <- function(R) {
+  if (is.null(R)) return(numeric(0))
+  p <- ncol(R)
+  if (p < 2) return(numeric(0))
+
+  upper_tri <- R[upper.tri(R, diag = FALSE)]
+  abs(upper_tri)
+}
+
+
+#' Compute correlation quantiles across bootstrap samples
+#'
+#' @param corr_list List of correlation matrices (one per bootstrap)
+#' @param probs Quantile probabilities (default: 0.25, 0.5, 0.75, 0.9)
+#' @return Data frame with columns: quantile, prob, median_rho, q025, q975
+#'
+#' @details
+#' For each bootstrap, extracts ALL pairwise correlations, computes quantiles,
+#' then summarizes across bootstraps with median and 95% CI
+compute_correlation_quantiles <- function(corr_list, probs = c(0.25, 0.5, 0.75, 0.9)) {
+
+  # For each bootstrap, get all |ρ| values and compute quantiles
+  quantile_matrix <- matrix(NA_real_, nrow = length(corr_list), ncol = length(probs))
+  colnames(quantile_matrix) <- paste0("q", probs * 100)
+
+  for (i in seq_along(corr_list)) {
+    abs_cors <- extract_all_abs_cors(corr_list[[i]])
+    if (length(abs_cors) > 0) {
+      quantile_matrix[i, ] <- quantile(abs_cors, probs = probs, na.rm = TRUE)
+    }
+  }
+
+  # Summarize across bootstraps: median and 95% CI for each quantile
+  results <- data.frame(
+    quantile = paste0("Q", probs * 100),
+    prob = probs,
+    median_rho = apply(quantile_matrix, 2, median, na.rm = TRUE),
+    q025 = apply(quantile_matrix, 2, quantile, 0.025, na.rm = TRUE),
+    q975 = apply(quantile_matrix, 2, quantile, 0.975, na.rm = TRUE)
+  )
+
+  return(results)
+}
+
+
 #' Generate ellipse points for a bivariate normal with given correlation
 #'
 #' @param rho Correlation coefficient (-1 to 1)
@@ -125,11 +174,12 @@ ellipse_from_rho <- function(rho, prob = 0.5, n = 361L) {
 }
 
 
-#' Create Saturn plot comparing all raters
+#' Create Saturn plot comparing all raters with quantile contours
 #'
 #' @param base_out_dir Base directory with rater subdirectories
 #' @param year Survey year
 #' @param prob Probability for HDR contour (default 0.5)
+#' @param quantiles Quantile probabilities to plot (default: 0.25, 0.5, 0.75, 0.9)
 #' @param highlight_gss Logical; emphasize GSS contour (default TRUE)
 #' @param color_palette Named vector of colors for raters (optional)
 #' @param save_pdf Logical; save plot to PDF (default TRUE)
@@ -140,18 +190,25 @@ create_saturn_plot <- function(
     base_out_dir    = BASE_OUT_DIR,
     year            = YEAR,
     prob            = 0.5,
+    quantiles       = c(0.25, 0.5, 0.75, 0.9),
     highlight_gss   = TRUE,
     color_palette   = NULL,
     save_pdf        = TRUE,
     output_file     = NULL
 ) {
 
-  cat("\n=== Creating Saturn Plot ===\n")
+  cat("\n=== Creating Saturn Plot (Quantile Contours) ===\n")
   cat("Probability contour:", prob, "\n")
+  cat("Quantiles:", paste(quantiles, collapse = ", "), "\n")
 
   # Get all available raters
   raters <- available_raters(base_out_dir = base_out_dir, year = year)
-  cat("Found", length(raters), "raters\n")
+  cat("Found", length(raters), "raters:", paste(raters, collapse = ", "), "\n")
+
+  if (length(raters) == 0) {
+    stop("No raters found in ", base_out_dir, "\n",
+         "Expected directories like: <rater>-", year)
+  }
 
   # Initialize storage
   mac_summary <- data.table(
@@ -163,6 +220,7 @@ create_saturn_plot <- function(
     q975_mac   = numeric()
   )
 
+  quantile_summary <- list()
   ellipse_data <- list()
 
   # Process each rater
@@ -216,53 +274,94 @@ create_saturn_plot <- function(
       )
     ))
 
-    # Generate ellipse for median MAC
-    ellipse_xy <- ellipse_from_rho(rho = med_mac, prob = prob, n = 361)
-    ellipse_df <- data.frame(
-      x     = ellipse_xy[, "x"],
-      y     = ellipse_xy[, "y"],
-      rater = rater,
-      mac   = med_mac
-    )
+    # Compute correlation quantiles across bootstrap distribution
+    quant_stats <- compute_correlation_quantiles(corr_list, probs = quantiles)
+    quant_stats$rater <- rater
+    quantile_summary[[rater]] <- quant_stats
 
-    ellipse_data[[rater]] <- ellipse_df
+    # Generate ellipses for each quantile
+    for (q in seq_len(nrow(quant_stats))) {
+      rho_q <- quant_stats$median_rho[q]
+      quantile_label <- quant_stats$quantile[q]
 
-    cat(sprintf(" MAC = %.3f [%.3f, %.3f]\n", med_mac, q025, q975))
+      ellipse_xy <- ellipse_from_rho(rho = rho_q, prob = prob, n = 361)
+      ellipse_df <- data.frame(
+        x        = ellipse_xy[, "x"],
+        y        = ellipse_xy[, "y"],
+        rater    = rater,
+        quantile = quantile_label,
+        prob_q   = quant_stats$prob[q],
+        rho      = rho_q
+      )
+
+      ellipse_key <- paste(rater, quantile_label, sep = "_")
+      ellipse_data[[ellipse_key]] <- ellipse_df
+    }
+
+    cat(sprintf(" MAC = %.3f [%.3f, %.3f]", med_mac, q025, q975))
+    cat(sprintf(" | Q90 = %.3f, Q75 = %.3f, Q50 = %.3f, Q25 = %.3f\n",
+                quant_stats$median_rho[quant_stats$prob == 0.9],
+                quant_stats$median_rho[quant_stats$prob == 0.75],
+                quant_stats$median_rho[quant_stats$prob == 0.5],
+                quant_stats$median_rho[quant_stats$prob == 0.25]))
+  }
+
+  # Check if we got any data
+  if (length(ellipse_data) == 0) {
+    stop("No ellipse data created. All raters failed to load or had invalid data.\n",
+         "Check that correlation matrices exist in: ", base_out_dir, "/<rater>-", year, "/polychor_bootstrap.rds")
   }
 
   # Combine all ellipse data
-  ellipse_dt <- rbindlist(ellipse_data)
+  ellipse_dt <- rbindlist(ellipse_data, use.names = TRUE)
+
+  if (nrow(ellipse_dt) == 0) {
+    stop("ellipse_dt has no rows. No valid data was created.")
+  }
 
   # Order raters by median MAC (for legend)
   mac_summary <- mac_summary[order(-median_mac)]
-
-  # Create display labels
-  ellipse_dt <- merge(
-    ellipse_dt,
-    mac_summary[, .(rater, median_mac)],
-    by = "rater",
-    all.x = TRUE
-  )
-  ellipse_dt[, rater_label := sprintf("%s (%.3f)", rater, median_mac)]
-
-  # Factor ordering for legend
   rater_order <- mac_summary$rater
+
+  # Factor rater for consistent ordering
   ellipse_dt[, rater := factor(rater, levels = rater_order)]
-  ellipse_dt[, rater_label := factor(rater_label,
-                                      levels = sprintf("%s (%.3f)",
-                                                      rater_order,
-                                                      mac_summary$median_mac))]
+
+  # Factor quantile for consistent ordering (Q90 > Q75 > Q50 > Q25)
+  quantile_levels <- paste0("Q", sort(quantiles * 100, decreasing = TRUE))
+  ellipse_dt[, quantile := factor(quantile, levels = quantile_levels)]
 
   # Identify GSS
-  is_gss <- tolower(ellipse_dt$rater) == "gss"
   ellipse_dt[, is_gss := tolower(rater) == "gss"]
+
+  # Set visual properties based on quantile
+  # Q90 (outermost) = thickest/most opaque
+  # Q25 (innermost) = thinnest/most transparent
+  ellipse_dt[, lwd := fcase(
+    quantile == "Q90", 1.2,
+    quantile == "Q75", 0.9,
+    quantile == "Q50", 0.7,
+    quantile == "Q25", 0.5,
+    default = 0.7
+  )]
+
+  ellipse_dt[, alpha := fcase(
+    quantile == "Q90", 0.9,
+    quantile == "Q75", 0.7,
+    quantile == "Q50", 0.5,
+    quantile == "Q25", 0.3,
+    default = 0.5
+  )]
+
+  # GSS gets full opacity regardless of quantile
+  ellipse_dt[is_gss == TRUE, alpha := 1.0]
+  ellipse_dt[is_gss == TRUE, lwd := lwd * 1.5]
 
   # Set up colors
   n_raters <- length(unique(ellipse_dt$rater))
 
   if (is.null(color_palette)) {
     # Default: rainbow colors, GSS in black
-    base_colors <- rainbow(n_raters - 1, v = 0.7)
+    base_colors <- rainbow(n_raters - 1, v = 0.7, s = 0.8)
     color_palette <- setNames(
       c("black", base_colors),
       c(rater_order[tolower(rater_order) == "gss"],
@@ -270,43 +369,58 @@ create_saturn_plot <- function(
     )
   }
 
-  # Set line widths and alphas
-  ellipse_dt[, lwd := ifelse(is_gss, 2.0, 0.8)]
-  ellipse_dt[, alpha := ifelse(is_gss, 1.0, 0.6)]
+  # Create interaction variable for grouping (rater × quantile)
+  ellipse_dt[, group_id := paste(rater, quantile, sep = "_")]
 
-  # Create plot
-  p <- ggplot(ellipse_dt, aes(x = x, y = y, group = rater, color = rater)) +
-    geom_path(aes(size = is_gss, alpha = is_gss)) +
-    scale_size_manual(values = c("FALSE" = 0.8, "TRUE" = 2.0), guide = "none") +
-    scale_alpha_manual(values = c("FALSE" = 0.6, "TRUE" = 1.0), guide = "none") +
+  # Create plot with multiple contours per rater
+  p <- ggplot(ellipse_dt, aes(x = x, y = y, group = group_id, color = rater)) +
+    geom_path(aes(size = lwd, alpha = alpha, linetype = quantile)) +
+    scale_size_identity() +
+    scale_alpha_identity() +
+    scale_linetype_manual(
+      values = c("Q90" = "solid", "Q75" = "solid", "Q50" = "dashed", "Q25" = "dotted"),
+      name = "Quantile of |ρ|",
+      labels = c("Q90" = "90th percentile",
+                 "Q75" = "75th percentile",
+                 "Q50" = "50th (median)",
+                 "Q25" = "25th percentile")
+    ) +
     scale_color_manual(
       values = color_palette,
-      labels = levels(ellipse_dt$rater_label),
-      name = "Rater (Median MAC)"
+      name = "Model"
     ) +
     coord_fixed(ratio = 1) +
-    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", size = 0.3) +
-    geom_vline(xintercept = 0, linetype = "dashed", color = "gray50", size = 0.3) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.3) +
+    geom_vline(xintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.3) +
     labs(
-      title = sprintf("Saturn Plot: Constraint Comparison (%d%% Probability Contours)", prob * 100),
-      subtitle = sprintf("Bivariate Normal HDR Ellipses with ρ = Median MAC (%d)", year),
+      title = sprintf("Saturn Plot: Constraint Distribution (%d%% Probability Contours)", prob * 100),
+      subtitle = sprintf("Multiple Quantiles of |ρ| Across All Belief Pairs (%d)", year),
       x = "Latent Variable 1 (standardized)",
-      y = "Latent Variable 2 (standardized)"
+      y = "Latent Variable 2 (standardized)",
+      caption = "Each model shows 4 contours: Q90 (outermost, tightest constraints), Q75, Q50 (median), Q25 (innermost, weakest constraints)"
     ) +
     theme_minimal(base_size = 12) +
     theme(
       legend.position = "right",
-      legend.text = element_text(size = 9),
-      legend.title = element_text(size = 10, face = "bold"),
+      legend.box = "vertical",
+      legend.text = element_text(size = 8),
+      legend.title = element_text(size = 9, face = "bold"),
       plot.title = element_text(size = 14, face = "bold"),
-      plot.subtitle = element_text(size = 11, color = "gray30"),
+      plot.subtitle = element_text(size = 10, color = "gray30"),
+      plot.caption = element_text(size = 8, color = "gray50", hjust = 0),
       panel.grid.minor = element_blank()
+    ) +
+    guides(
+      color = guide_legend(order = 1, override.aes = list(linewidth = 1.5, alpha = 1)),
+      linetype = guide_legend(order = 2, override.aes = list(linewidth = 1))
     )
 
   # Save plot
   if (save_pdf) {
     if (is.null(output_file)) {
-      output_file <- file.path(BASE_VIZ_DIR, sprintf("saturn_plot_%d.pdf", year))
+      # Save in mvn_YEAR subdirectory to match other MVN visualizations
+      mvn_dir <- file.path(BASE_VIZ_DIR, sprintf("mvn_%d", year))
+      output_file <- file.path(mvn_dir, "saturn_plot.pdf")
     }
 
     dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
@@ -326,9 +440,18 @@ create_saturn_plot <- function(
   fwrite(mac_summary, mac_file)
   cat("MAC summary saved to:", mac_file, "\n")
 
+  # Save quantile summary
+  quantile_dt <- rbindlist(quantile_summary)
+  quant_file <- file.path(base_out_dir, sprintf("correlation_quantiles_%d.csv", year))
+  fwrite(quantile_dt, quant_file)
+  cat("Correlation quantiles saved to:", quant_file, "\n")
+
   # Print summary table
   cat("\n=== MAC Summary (sorted by constraint) ===\n")
   print(mac_summary)
+
+  cat("\n=== Correlation Quantile Summary ===\n")
+  print(quantile_dt[order(-median_rho)])
 
   cat("\n=== Saturn Plot Complete ===\n\n")
 
