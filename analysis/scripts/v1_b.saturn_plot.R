@@ -94,12 +94,12 @@ create_saturn_plot <- function(
     base_viz_dir      = BASE_VIZ_DIR,
     year              = YEAR,
     prob              = 0.5,
-    quantiles         = c(0.25, 0.5, 0.75, 0.9),
-    
+    quantiles         = c(0.5, 0.75, 0.9),  # Only quantiles that will be highlighted
+
     highlight_gss     = TRUE,
-    
+
     # Option C parameters:
-    relevant_q        = c("Q90", "Q75"),  # which quantiles to consider “relevant”
+    relevant_q        = c("Q90", "Q75", "Q50"),  # which quantiles to consider "relevant"
     delta_min         = 0.10,            # highlight if rho_model - rho_GSS >= delta_min
     top_n_per_q       = NULL,            # optional: keep only top-N by delta per quantile
     
@@ -394,8 +394,8 @@ create_saturn_plot <- function(
     dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
     message("Saving: ", output_file)
     
-    # Wide layout for 4 horizontal facets (one per quantile)
-    ggsave(filename = output_file, plot = p, width = 20, height = 8, device = "pdf")
+    # Wide layout for 3 horizontal facets (Q50, Q75, Q90)
+    ggsave(filename = output_file, plot = p, width = 16, height = 8, device = "pdf")
   }
   
   # Save summaries
@@ -429,8 +429,8 @@ if (exists("BASE_OUT_DIR") && exists("BASE_VIZ_DIR") && exists("YEAR")) {
     base_viz_dir   = BASE_VIZ_DIR,
     year           = YEAR,
     prob           = 0.5,
-    quantiles      = c(0.25, 0.5, 0.75, 0.9),
-    
+    quantiles      = c(0.5, 0.75, 0.9),  # Only compute quantiles we'll highlight
+
     # Option C controls
     relevant_q     = c("Q90", "Q75", "Q50"),
     delta_min      = 0.10,    # increase to highlight fewer, decrease to highlight more
