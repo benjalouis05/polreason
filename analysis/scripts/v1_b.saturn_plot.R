@@ -1,8 +1,11 @@
 ################################################################################
-# Saturn Plots (Improved) — Option C Highlighting
-# Highlight models that are meaningfully more constrained than GSS at “relevant”
+# Saturn Plots (Faceted) — Option C Highlighting
+# Highlight models that are meaningfully more constrained than GSS at "relevant"
 # quantiles, using Δ = rho_model(quantile) - rho_GSS(quantile).
 #
+# FACETED LAYOUT: Each quantile (Q25, Q50, Q75, Q90) shown in separate panel
+# - Horizontal layout (nrow = 1) for easy left-to-right comparison
+# - Each panel shows constraint at that specific quantile level
 # - All non-highlighted non-GSS models: thin grey spaghetti
 # - Highlighted model/quantile paths: colored (small legend)
 # - GSS: bold black on top (optional)
@@ -288,8 +291,8 @@ create_saturn_plot <- function(
   r0 <- sqrt(qchisq(prob, df = 2))
   lim <- 1.25 * r0
   
-  # --- PLOT (legend fix: stack legends vertically + wrap model legend into columns) ---
-  
+  # --- FACETED PLOT: Each quantile in its own panel ---
+
   p <- ggplot() +
     geom_hline(yintercept = 0, color = "gray90", linewidth = 0.3) +
     geom_vline(xintercept = 0, color = "gray90", linewidth = 0.3) +
@@ -297,97 +300,89 @@ create_saturn_plot <- function(
       data = ref, aes(x, y),
       color = "gray80", linewidth = 0.4, linetype = "dashed", lineend = "round"
     ) +
-    
-    # Non-highlighted LLM spaghetti (neutral)
+
+    # Non-highlighted LLM spaghetti (neutral) - no linetype aesthetic needed per facet
     geom_path(
       data = rest_dt,
-      aes(x, y, group = group_id, linetype = quantile),
+      aes(x, y, group = group_id),
       color = "gray50",
       alpha = spaghetti_alpha,
       linewidth = spaghetti_width,
       lineend = "round"
     ) +
-    
-    # Highlighted (model, quantile) paths
+
+    # Highlighted (model, quantile) paths - no linetype needed
     { if (nrow(hi_dt)) geom_path(
       data = hi_dt,
-      aes(x, y, group = group_id, linetype = quantile, color = rater),
+      aes(x, y, group = group_id, color = rater),
       alpha = 0.65,
       linewidth = highlight_width,
       lineend = "round"
     )
     } +
-    
+
     # GSS on top
     { if (nrow(gss_dt)) geom_path(
       data = gss_dt,
-      aes(x, y, group = group_id, linetype = quantile),
+      aes(x, y, group = group_id),
       color = if (highlight_gss) "black" else "gray20",
       alpha = if (highlight_gss) 1.0 else 0.4,
       linewidth = if (highlight_gss) gss_width else 0.6,
       lineend = "round"
     )
     } +
-    
-    scale_linetype_manual(values = linetypes, name = "Constraint quantile") +
+
+    # Facet by quantile (each panel shows one constraint level)
+    facet_wrap(~ quantile, nrow = 1, labeller = labeller(quantile = function(x) {
+      paste0("Constraint: ", x)
+    })) +
+
     coord_equal(xlim = c(-lim, lim), ylim = c(-lim, lim), expand = FALSE) +
     labs(x = "Standardized Dimension 1", y = "Standardized Dimension 2") +
-    theme_classic(base_size = 16) +
+    theme_classic(base_size = 14) +
     theme(
-      # Put legends at bottom, but STACK them vertically so one can't push the other off
+      # Legend at bottom (no need for linetype legend with facets)
       legend.position   = "bottom",
-      legend.box        = "vertical",
       legend.direction  = "horizontal",
       legend.box.just   = "center",
-      
+
       legend.title      = element_text(face = "bold"),
       panel.grid        = element_blank(),
-      
-      # Make legend block fit on the page (prevents clipping)
+
+      # Facet strip styling
+      strip.background  = element_rect(fill = "gray95", color = "gray70", linewidth = 0.5),
+      strip.text        = element_text(face = "bold", size = 12),
+
+      # Make legend block fit on the page
       legend.margin     = margin(t = 6, r = 6, b = 6, l = 6),
       legend.box.margin = margin(t = 6),
       plot.margin       = margin(10, 10, 18, 10),
-      
+
       # Dense model legends: tighter keys
       legend.key.height = unit(0.9, "lines"),
-      legend.key.width  = unit(1.6, "lines")
+      legend.key.width  = unit(1.6, "lines"),
+
+      # Panel spacing
+      panel.spacing     = unit(1, "lines")
     )
-  
+
   # Guides / scales:
-  # - If highlights exist: show a wrapped color legend (multiple columns) + quantile legend
-  # - If no highlights: hide color legend, keep quantile legend
+  # - Only show color legend for highlighted models (no linetype legend needed with facets)
   if (length(hi_levels)) {
     p <- p +
       scale_color_manual(values = hi_palette, name = "Highlighted models") +
       guides(
         color = guide_legend(
-          order = 1,
-          ncol = 3,          # <-- change this: fewer columns = taller; more columns = wider
+          ncol = 4,          # More columns for horizontal layout across facets
           byrow = TRUE,
           title.position = "top",
           title.hjust = 0.5,
           override.aes = list(alpha = 1, linewidth = 1.2)
-        ),
-        linetype = guide_legend(
-          order = 2,
-          nrow = 1,
-          title.position = "top",
-          title.hjust = 0.5,
-          override.aes = list(alpha = 1, linewidth = 1.0)
         )
       )
   } else {
     p <- p +
-      guides(
-        color = "none",
-        linetype = guide_legend(
-          order = 1,
-          nrow = 1,
-          title.position = "top",
-          title.hjust = 0.5,
-          override.aes = list(alpha = 1, linewidth = 1.0)
-        )
-      )
+      guides(color = "none")
   }
   
   # Save plot
@@ -399,8 +394,8 @@ create_saturn_plot <- function(
     dir.create(dirname(output_file), recursive = TRUE, showWarnings = FALSE)
     message("Saving: ", output_file)
     
-    # Slightly taller device gives legends more room (prevents clipping)
-    ggsave(filename = output_file, plot = p, width = 12, height = 14, device = "pdf")
+    # Wide layout for 4 horizontal facets (one per quantile)
+    ggsave(filename = output_file, plot = p, width = 20, height = 8, device = "pdf")
   }
   
   # Save summaries
@@ -425,7 +420,8 @@ create_saturn_plot <- function(
 
 if (exists("BASE_OUT_DIR") && exists("BASE_VIZ_DIR") && exists("YEAR")) {
   message("\n====================================================================")
-  message("Saturn Plot (Improved): Option C Highlighting (Δ vs GSS at quantiles)")
+  message("Saturn Plot (Faceted): Option C Highlighting (Δ vs GSS at quantiles)")
+  message("Each quantile shown in separate panel for easy comparison")
   message("====================================================================\n")
   
   saturn_plot <- create_saturn_plot(
