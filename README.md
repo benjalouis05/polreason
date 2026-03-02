@@ -1,20 +1,22 @@
-# Political Reasoning and Constraint in Large Language Models
+# Synthetic Personas Distort the Structure of Human Belief Systems
 
-This repository contains code and data for analyzing political constraint patterns in Large Language Model (LLM) responses to survey questions, based on synthetic personas derived from General Social Survey (GSS) data.
+**Christopher Barrie & Roberto Cerina**
 
-## Replication
+Replication repository for:
 
-This repository includes all code, synthetic data, pre-computed bootstrap outputs, and visualizations needed to reproduce the analysis in full. The quickest path is:
+> Barrie, C. & Cerina, R. (2026). Synthetic personas distort the structure of human belief systems. *SocArXiv*. https://doi.org/10.31235/osf.io/n7fq8_v1
+
+This repository contains all code, synthetic data, pre-computed outputs, and visualizations needed to reproduce the analysis. The quickest path:
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/cjbarrie/polreason
 cd polreason
 Rscript analysis/scripts/master.R
 ```
 
 See `analysis/README.md`, `generation/README.md`, and `docs/replication_release_plan.md` for full details.
 
-## Project Overview
+## Overview
 
 This project investigates how different LLMs exhibit patterns of political constraint when answering survey questions as synthetic personas. Building on della Posta's (2020) framework for measuring belief constraint, we:
 
@@ -72,16 +74,6 @@ polreason/
 └── README.md              # This file
 ```
 
-## Quick Start
-
-If you want to reproduce the analysis from the already-committed synthetic responses, the default path is:
-
-```bash
-Rscript analysis/scripts/master.R
-```
-
-Run that command from the repository root after installing the R packages listed below.
-
 ## Installation
 
 ### Prerequisites
@@ -120,7 +112,7 @@ install.packages(c("gganimate", "gifski"))
 
 ### GSS Cumulative Data File
 
-The GSS cumulative data file (`gss7224_r1.dta`, 565MB) is **included locally** in `generation/data/` but **excluded from GitHub** via `.gitignore` due to size constraints.
+The GSS cumulative data file (`gss7224_r1.dta`, 565MB) is **excluded from this repository** via `.gitignore` due to NORC redistribution terms.
 
 **If cloning from GitHub**, you'll need to download the file separately:
 
@@ -307,9 +299,7 @@ To modify or extend this project:
 
 ## Repository Metadata
 
-- **Created**: December 2024
 - **Data Year**: 2024 (GSS wave)
 - **Models**: 28+ LLMs + human baseline
 - **Survey Items**: 52 questions (30 culture-war, 22 non-culture-war)
-- **Personas**: 1000 synthetic respondents per model
-- **Local Repository Size During Audit**: ~2.7 GB
+- **Personas**: 1,000 synthetic respondents per model
