@@ -6,6 +6,8 @@ Replication repository for:
 
 > Barrie, C. & Cerina, R. (2026). Synthetic personas distort the structure of human belief systems. *SocArXiv*. https://doi.org/10.31235/osf.io/n7fq8_v1
 
+![Saturn animation: belief constraint contours across quantile levels](analysis/viz/mvn_2024/saturn_animation.gif)
+
 This repository contains all code, synthetic data, pre-computed outputs, and visualizations needed to reproduce the analysis. The quickest path:
 
 ```bash
