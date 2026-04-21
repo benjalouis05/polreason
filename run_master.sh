@@ -21,7 +21,7 @@
 #SBATCH --mem=64G
 #SBATCH --time=24:00:00
 #SBATCH --account=pi_ju78
-#SBATCH --partition=standard
+#SBATCH --partition=day_amd
 
 # --- Environment Setup ---
 
