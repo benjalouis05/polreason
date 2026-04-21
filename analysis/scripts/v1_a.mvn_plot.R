@@ -547,6 +547,9 @@ plot_bvn_sets <- function(
 #' @param legend_outer,legend_pt_lwd Passed to \code{\link{plot_bvn_sets}}.
 #' @param plot_bootstraps,plot_median Passed to \code{\link{plot_bvn_sets}} to
 #'   control what gets drawn.
+#' @param preloaded_corrs Optional named list of bootstrap correlation matrices
+#'   already in memory (e.g. `list(gss = ..., rater1 = ...)`) to avoid disk
+#'   I/O. If missing, the function loads from disk.
 #' @param ... Additional arguments forwarded to \code{\link{plot_bvn_sets}}. If
 #'   \code{main} is supplied in \code{...}, it overrides the default title.
 #'
@@ -575,6 +578,7 @@ plot_bvn_belief_pair <- function(
     legend_pt_lwd   = 1,
     plot_bootstraps = TRUE,
     plot_median     = TRUE,
+    preloaded_corrs = NULL,
     ...
 ) {
   raters_all <- available_raters(base_out_dir = base_out_dir, year = year)
@@ -599,7 +603,11 @@ plot_bvn_belief_pair <- function(
   }
   
   rho_sets <- lapply(raters, function(r) {
-    corr_list <- load_corr_for_rater(r, base_out_dir = base_out_dir, year = year)
+    if (!is.null(preloaded_corrs) && r %in% names(preloaded_corrs)) {
+      corr_list <- preloaded_corrs[[r]]
+    } else {
+      corr_list <- load_corr_for_rater(r, base_out_dir = base_out_dir, year = year)
+    }
     extract_rhos_for_pair(corr_list, belief_x, belief_y)
   })
   
@@ -760,17 +768,21 @@ plot_all_bvn_pairs <- function(
     corr_gss <- load_corr_for_rater("gss", base_out_dir = base_out_dir, year = year)
   }
   
+  # Combine for internal passing
+  all_corrs <- c(list(gss = corr_gss), llm_corrs)
+
   n_plotted <- 0L
   
-  for (p in pairs) {
-    belief_x <- p[1]
-    belief_y <- p[2]
+  # Parallelize plotting over pairs
+  res <- parallel::mclapply(pairs, function(p) {
+    belief_x <- p[1L]
+    belief_y <- p[2L]
     
     # ---- eligibility enforcement: pair must co-occur in at least one LLM matrix ----
     pair_ok <- any(vapply(names(llm_corrs), function(r) {
       pair_exists_in_corr_list(llm_corrs[[r]], belief_x, belief_y)
     }, logical(1L)))
-    if (!pair_ok) next
+    if (!pair_ok) return(FALSE)
     
     # ---- filename prefix: prefer GSS median, else first LLM finite median ----
     prefix_med <- NA_real_
@@ -804,16 +816,18 @@ plot_all_bvn_pairs <- function(
       year            = year,
       base_out_dir    = base_out_dir,
       prob            = prob,
-      llms            = llms,            # controls which LLMs are plotted (and matches eligibility set)
+      llms            = llms,            
       legend_pt_lwd   = 1.5,
       plot_bootstraps = plot_bootstraps,
       plot_median     = plot_median,
+      preloaded_corrs = all_corrs,
       ...
     )
     dev.off()
-    
-    n_plotted <- n_plotted + 1L
-  }
+    return(TRUE)
+  }, mc.cores = get0("N_CORES", ifnotfound = 1L))
+  
+  n_plotted <- sum(unlist(res))
   
   invisible(list(
     beliefs    = beliefs,
@@ -834,5 +848,6 @@ plot_all_bvn_pairs(
   prob            = 0.5,
   legend_outer    = TRUE,
   plot_bootstraps = FALSE,
-  plot_median     = TRUE
+  plot_median     = TRUE,
+  llms            = c("Nemo_2", "mistralai_mistral-nemo")
 )

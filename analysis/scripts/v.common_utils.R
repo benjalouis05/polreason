@@ -18,6 +18,7 @@ available_raters <- function(
   rater_dirs <- dirs[grepl(pattern, dirs)]
   rs <- sub(pattern, "", rater_dirs)
   rs <- rs[!rs %in% exclude]
+  rs <- rs[vapply(rs, function(r) file.exists(file.path(base_out_dir, paste0(r, "-", year), "polychor_bootstrap.rds")), logical(1))]
   rs
 }
 

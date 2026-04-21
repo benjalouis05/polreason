@@ -23,7 +23,7 @@ This means:
 
 ## What is not included
 
-- `generation/data/gss7224_r1.dta` — the 566 MB GSS cumulative data file is gitignored per NORC redistribution terms. Users must download it directly from https://gss.norc.org/get-the-data/stata.html if they want to re-run the data extraction or persona generation steps. It is **not needed** to reproduce the statistical analysis.
+- `generation/data/gss7224_r3.dta` — the 566 MB GSS cumulative data file is gitignored per NORC redistribution terms. Users must download it directly from https://gss.norc.org/get-the-data/stata.html if they want to re-run the data extraction or persona generation steps. It is **not needed** to reproduce the statistical analysis.
 
 ## Replication paths
 
@@ -44,7 +44,7 @@ Rscript 00b_generate_personas.R
 
 # Query LLMs
 export OPENROUTER_API_KEY="your-key"
-python 01_generate_synthetic_GSS.py --year 2024 --all-models --personas 1000
+python 01_generate_synthetic_GSS.py --year 2024 --models mistralai/mistral-nemo --personas 300
 
 # Run analysis
 cd ../..

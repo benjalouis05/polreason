@@ -16,10 +16,10 @@ Features:
 - ✅ Batch saving with progress tracking
 
 Usage:
-    python 01_generate_synthetic_GSS.py --year 2024 --all-models --personas 600
+    python 01_generate_synthetic_GSS.py --year 2024 --models mistralai/mistral-nemo --personas 300
     python 01_generate_synthetic_GSS.py --year 2016 --models openai/gpt-4o --personas 300
 
-Set OPENROUTER_API_KEY environment variable before running.
+Set OPENROUTER_API_KEYS environment variable before running. Multiple keys can be comma-separated.
 """
 
 import os
@@ -282,53 +282,7 @@ GSS_QUESTIONS_COMPREHENSIVE = {**GSS_QUESTIONS_CULTUREWAR, **GSS_QUESTIONS_NONCU
 
 # Popular models on OpenRouter
 POPULAR_MODELS = [
-    # existing models
-    # "deepseek/deepseek-chat-v3.1",
-    # "google/gemini-2.5-flash",
-    # "google/gemma-3-12b-it",
-    # "openai/gpt-4o-mini",
-    # "openai/gpt-oss-120b",
-    # "meta-llama/llama-3.1-8b-instruct",
-    # "meta-llama/llama-3.3-70b-instruct",
-    # "meta-llama/llama-4-maverick",
-    "mistralai/mistral-small-3.2-24b-instruct",
-    "mistralai/mistral-medium-3.1",
-    "mistralai/mistral-nemo",
-    "z-ai/glm-4.6",
-    "qwen/qwen-2.5-72b-instruct",
-    "arcee-ai/trinity-mini",
-    "anthropic/claude-3.7-sonnet",
-    "anthropic/claude-sonnet-4.5",
-    "x-ai/grok-4-fast",
-
-    # --- new high-usage / frontier models from OpenRouter ---
-
-    # OpenAI 5-series
-    "openai/gpt-5-mini",
-    "openai/gpt-5",
-
-    # Gemini tiers
-    "google/gemini-2.5-flash-lite",
-
-    # Newer DeepSeek chat models
-    "deepseek/deepseek-chat-v3-0324",
-    "deepseek/deepseek-v3.2-20251201",
-
-    # New Mistral flagship
-    "mistralai/mistral-large-2512",
-
-    # New Qwen3 large instruct
-    "qwen/qwen3-235b-a22b-2507",
-
-    # Popular non-US giant
-    "minimax/minimax-m2",
-
-    # non-mainstream additions
-    "moonshotai/kimi-k2",
-    "ai21/jamba-large-1.7",
-    "cohere/command-r-plus-08-2024",
-    "allenai/olmo-3-7b-instruct",
-    "deepcogito/cogito-v2-preview-llama-405b",
+    "mistralai/mistral-nemo"
 ]
 
 
@@ -339,6 +293,7 @@ def query_openrouter(
     options: Dict[int, str],
     api_key: str,
     year: int,
+    prompt_template: str,
     timeout: int = 30,
     max_retries: int = 3
 ) -> Dict:
@@ -352,6 +307,7 @@ def query_openrouter(
         options: Dict mapping option numbers to text
         api_key: OpenRouter API key
         year: Survey year for temporal context
+        prompt_template: The instruction string for the LLM
         timeout: Request timeout in seconds
         max_retries: Maximum number of retry attempts
 
@@ -361,16 +317,12 @@ def query_openrouter(
 
     options_text = "\n".join([f"{k}. {v}" for k, v in options.items()])
 
-    prompt = f"""It is now {year}. You are answering survey questions as the following person, who is living in the United States:
-
-{persona}
-
-Question: {question}
-
-Options:
-{options_text}
-
-Respond with ONLY the number of your answer (e.g., "1" or "2"). Do not explain your reasoning."""
+    prompt = prompt_template.format(
+        year=year,
+        persona=persona,
+        question=question,
+        options_text=options_text
+    )
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -505,8 +457,14 @@ def main():
     parser.add_argument(
         "--personas",
         type=int,
-        default=600,
-        help="Number of personas to query (default: 600)"
+        default=300,
+        help="Number of personas to query (default: 300)"
+    )
+    parser.add_argument(
+        "--prompt-template",
+        type=str,
+        default="prompts/default_prompt.txt",
+        help="Path to the prompt template file relative to generation script"
     )
     parser.add_argument(
         "--max-workers",
@@ -520,17 +478,36 @@ def main():
         default=100,
         help="Number of results to accumulate before saving (default: 100)"
     )
+    parser.add_argument(
+        "--output-suffix",
+        type=str,
+        default="",
+        help="Optional suffix appended to the completed CSV filename (e.g. '_run2')"
+    )
 
     args = parser.parse_args()
     year = args.year
 
-    # Get API key
-    api_key = os.getenv("OPENROUTER_API_KEY")
-    if not api_key:
+    # Get API keys
+    api_keys_str = os.getenv("OPENROUTER_API_KEYS", os.getenv("OPENROUTER_API_KEY"))
+    if not api_keys_str:
         raise ValueError(
-            "OPENROUTER_API_KEY environment variable not set. "
+            "OPENROUTER_API_KEYS or OPENROUTER_API_KEY environment variable not set. "
             "Get your API key from https://openrouter.ai/keys"
         )
+    
+    api_keys = [k.strip() for k in api_keys_str.split(",") if k.strip()]
+    if not api_keys:
+        raise ValueError("No valid API keys found in the environment variables.")
+        
+    prompt_file = PROJECT_DIR / args.prompt_template
+    if not prompt_file.exists():
+        prompt_file = SCRIPT_DIR / args.prompt_template
+    if not prompt_file.exists():
+        raise FileNotFoundError(f"Prompt template file not found: {args.prompt_template}")
+    
+    with open(prompt_file, 'r', encoding='utf-8') as f:
+        prompt_template = f.read()
 
     # Determine models to use
     if args.all_models:
@@ -538,7 +515,7 @@ def main():
     elif args.models:
         models = [m.strip() for m in args.models.split(",")]
     else:
-        raise ValueError("Must specify either --models or --all-models")
+        models = POPULAR_MODELS
 
     # Create output directory
     output_base = PROJECT_DIR / "synthetic_data"
@@ -596,6 +573,11 @@ def main():
 
         # Clean model name for filename
         model_filename = model.replace("/", "_")
+        
+        # Append optional suffix
+        if args.output_suffix:
+            model_filename += args.output_suffix
+            
         output_file = output_dir / f"{model_filename}.csv"
 
         # Load already-completed tasks for resume functionality
@@ -642,17 +624,20 @@ def main():
 
         # Process tasks in parallel
         with ThreadPoolExecutor(max_workers=args.max_workers) as executor:
-            future_to_task = {
-                executor.submit(
+            future_to_task = {}
+            for i, task in enumerate(tasks):
+                key = api_keys[i % len(api_keys)]
+                future = executor.submit(
                     query_openrouter,
                     model,
                     task['persona_text'],
                     task['question'],
                     task['options'],
-                    api_key,
-                    year
-                ): task for task in tasks
-            }
+                    key,
+                    year,
+                    prompt_template
+                )
+                future_to_task[future] = task
 
             pbar = tqdm(total=len(tasks), desc=model.split('/')[-1])
 

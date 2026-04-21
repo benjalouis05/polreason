@@ -753,6 +753,7 @@ raters_all <- available_raters(BASE_OUT_DIR, YEAR)
 
 # Ensure GSS is included even if available_raters() excludes it for any reason.
 raters_all <- unique(c(raters_all, RATER_GSS))
+raters_all <- raters_all[raters_all %in% c("gss", "Nemo_2", "mistralai_mistral-nemo")]
 
 raters_llm <- setdiff(raters_all, RATER_GSS)
 
@@ -797,6 +798,7 @@ names(summary_list) <- raters_all
 
 for (i in seq_along(raters_all)) {
   r <- raters_all[[i]]
+  message("  -> Rayleigh ratios for rater: ", r)
   
   ratio_dt <- rayleigh_ratios_for_rater(
     rater        = r,

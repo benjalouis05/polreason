@@ -701,6 +701,8 @@ stopifnot(!is.null(persona_vars_global), length(persona_vars_global) > 0)
 
 # Discover which raters have directories of the form "<rater>-<year>"
 raters <- available_raters(base_out_dir = BASE_OUT_DIR, year = year)
+raters <- raters[raters %in% c("gss", "Nemo_2", "mistralai_mistral-nemo")]
+
 if (!length(raters)) stop("No rater directories found in ", BASE_OUT_DIR, " for year ", year)
 
 non_llm_raters <- c("gss")
@@ -771,6 +773,7 @@ constraint_list <- vector("list", length(raters))
 names(constraint_list) <- raters
 
 for (r in raters) {
+  message("  -> Constraints (beliefs vs beliefs|persona) for rater: ", r)
   corr_list <- load_corr_for_rater(
     rater                = r,
     base_out_dir         = BASE_OUT_DIR,
@@ -865,6 +868,7 @@ if (nrow(constraint_dt) && !isTRUE(get0("SKIP_V2B_PLOTS", ifnotfound = FALSE))) 
 nonpersona_cumvar_list <- list()
 
 for (r in raters) {
+  message("  -> Cumulative variance decomp for rater: ", r)
   for (grp in names(edu_suffixes)) {
     suf <- edu_suffixes[[grp]]
     vars_keep <- if (r %in% non_llm_raters) llm_vars_by_group[[grp]] else NULL

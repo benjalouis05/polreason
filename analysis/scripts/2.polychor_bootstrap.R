@@ -247,91 +247,72 @@ if(run_from_scratch == TRUE){
   # In each stratum, we again drop constants and recompute correlations.
   ################################################################################
   
-  # now caclulate polychoric correrlations
-  corr_list <- list()
-  corr_lo.edu_list <- list()
-  corr_hi.edu_list <- list()
+  # now calculate polychoric correlations in parallel
+  message("Computing polychoric correlations for ", length(boot_list), " bootstraps using ", get0("N_CORES", ifnotfound = 1L), " cores...")
   
-  for(j in seq_along(boot_list)){
+  boot_results <- parallel::mclapply(seq_along(boot_list), function(j) {
     
     dat_j <- as.data.table(boot_list[[j]])[, ..ord_vars]
     
-    ## 1. Find vars with at least 2 non-missing levels
+    ## 1. Find vars with at least 2 non-missing levels (Overall)
     keep_vars <- names(dat_j)[
       vapply(dat_j, function(x) length(unique(na.omit(x))) > 1L, logical(1))
     ]
-    drop_vars <- setdiff(ord_vars, keep_vars)
     
-    if (length(drop_vars)) {
-      message("Bootstrap ", j, ": dropping constant vars: ",
-              paste(drop_vars, collapse = ", "))
-    }
-    
-    ## 2. Convert only those to ordered
+    ## 2. Convert to ordered and compute Overall
     dat_ord <- to_ordered(dat_j[, ..keep_vars], keep_vars)
     
-    corr_list[[j]] <-
-      lavaan::lavCor(
-        dat_ord,
-        ordered     = keep_vars,
-        estimator   = "two.step",
-        se          = "none",
-        output      = "cor",
-        cor.smooth  = TRUE,
-        missing     = "pairwise"
-      )
+    c_all <- lavaan::lavCor(
+      dat_ord,
+      ordered     = keep_vars,
+      estimator   = "two.step",
+      se          = "none",
+      output      = "cor",
+      cor.smooth  = TRUE,
+      missing     = "pairwise"
+    )
     
+    ## 3. Lo-Edu Stratum
     dat_ord_loedu <- dat_ord[educ %in% 1:13][,!'educ']
-    
-    keep_vars <- names(dat_ord_loedu)[
+    keep_vars_lo  <- names(dat_ord_loedu)[
       vapply(dat_ord_loedu, function(x) length(unique(na.omit(x))) > 1L, logical(1))
     ]
-    drop_vars <- setdiff(ord_vars, keep_vars)
+    dat_ord_loedu <- to_ordered(dat_ord_loedu[, ..keep_vars_lo], keep_vars_lo)
     
-    if (length(drop_vars)) {
-      message("Bootstrap ", j, ": dropping constant vars: ",
-              paste(drop_vars, collapse = ", "))
-    }
+    c_lo <- lavaan::lavCor(
+      dat_ord_loedu,
+      ordered     = keep_vars_lo,
+      estimator   = "two.step",
+      se          = "none",
+      output      = "cor",
+      cor.smooth  = TRUE,
+      missing     = "pairwise"
+    )
     
-    dat_ord_loedu <- to_ordered(dat_ord_loedu[, ..keep_vars], keep_vars)
-    
-    corr_lo.edu_list[[j]] <-
-      lavaan::lavCor(
-        dat_ord_loedu, # some college is threshold 
-        ordered     = keep_vars,
-        estimator   = "two.step",
-        se          = "none",
-        output      = "cor",
-        cor.smooth  = TRUE,
-        missing     = "pairwise"
-      )
-    
-    
+    ## 4. Hi-Edu Stratum
     dat_ord_hiedu <- dat_ord[educ %in% 14:20][,!'educ']
-    
-    keep_vars <- names(dat_ord_hiedu)[
+    keep_vars_hi  <- names(dat_ord_hiedu)[
       vapply(dat_ord_hiedu, function(x) length(unique(na.omit(x))) > 1L, logical(1))
     ]
-    drop_vars <- setdiff(ord_vars, keep_vars)
+    dat_ord_hiedu <- to_ordered(dat_ord_hiedu[, ..keep_vars_hi], keep_vars_hi)
     
-    if (length(drop_vars)) {
-      message("Bootstrap ", j, ": dropping constant vars: ",
-              paste(drop_vars, collapse = ", "))
-    }
+    c_hi <- lavaan::lavCor(
+      dat_ord_hiedu,
+      ordered     = keep_vars_hi,
+      estimator   = "two.step",
+      se          = "none",
+      output      = "cor",
+      cor.smooth  = TRUE,
+      missing     = "pairwise"
+    )
     
-    dat_ord_hiedu <- to_ordered(dat_ord_hiedu[, ..keep_vars], keep_vars)
-    
-    corr_hi.edu_list[[j]] <-
-      lavaan::lavCor(
-        dat_ord_hiedu, # some college is threshold 
-        ordered     = keep_vars,
-        estimator   = "two.step",
-        se          = "none",
-        output      = "cor",
-        cor.smooth  = TRUE,
-        missing     = "pairwise"
-      )
-  }
+    return(list(all = c_all, lo = c_lo, hi = c_hi))
+  }, mc.cores = get0("N_CORES", ifnotfound = 1L))
+  
+  # Extract results back into lists
+  corr_list        <- lapply(boot_results, `[[`, "all")
+  corr_lo.edu_list <- lapply(boot_results, `[[`, "lo")
+  corr_hi.edu_list <- lapply(boot_results, `[[`, "hi")
   
   # save the correlation matrices 
   saveRDS(corr_list, file = file.path(DIR_OUT, "polychor_bootstrap.rds"))

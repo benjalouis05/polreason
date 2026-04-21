@@ -10,6 +10,10 @@ library(grDevices)
 library(scales)
 library(ggnewscale)
 library(irr)
+library(parallel)
+
+# Number of cores for parallel execution
+N_CORES <- pmax(1, parallel::detectCores() - 1) 
 
 # # --- helpers ------------------------------------------------------------ # #
 # helper: from a wide numeric DT, coerce all ord-vars to ordered factors
@@ -139,16 +143,16 @@ filter_to_mode_varset <- function(corr_list) {
     S[ref_vars, ref_vars, drop = FALSE]
   })
   
-  message(sprintf(
-    "keeping %d bootstraps (dropped %d) with the most frequent variable set.",
-    length(corr_keep_aligned), length(corr_list) - length(corr_keep_aligned)
-  ))
+  # message(sprintf(
+  #   "keeping %d bootstraps (dropped %d) with the most frequent variable set.",
+  #   length(corr_keep_aligned), length(corr_list) - length(corr_keep_aligned)
+  # ))
   
   corr_keep_aligned
 }
 
 # # --- Boostrap------------------------------------------------------------ # #
-B = 500L
+B = 50L
 
 # multiple imputation DGPs
 B_MI = 30L

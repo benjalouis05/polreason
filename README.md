@@ -125,14 +125,14 @@ install.packages(c("gganimate", "gifski"))
 
 ### GSS Cumulative Data File
 
-The GSS cumulative data file (`gss7224_r1.dta`, 565MB) is **excluded from this repository** via `.gitignore` due to NORC redistribution terms.
+The GSS cumulative data file (`gss7224_r3.dta`, 565MB) is **excluded from this repository** via `.gitignore` due to NORC redistribution terms.
 
 **If cloning from GitHub**, you'll need to download the file separately:
 
 1. **Download**: Visit https://gss.norc.org/get-the-data/stata.html
-2. **File needed**: GSS 1972-2024 Cumulative Data (Release 1) in Stata format
-3. **Filename**: `gss7224_r1.dta`
-4. **Location**: Place in `generation/data/gss7224_r1.dta`
+2. **File needed**: GSS 1972-2024 Cumulative Data (Release 3) in Stata format
+3. **Filename**: `gss7224_r3.dta`
+4. **Location**: Place in `generation/data/gss7224_r3.dta`
 
 **Note**: If you only want to run the analysis pipeline (not generate new synthetic data), you can skip this step since the synthetic responses are already included in `generation/synthetic_data/`.
 
@@ -187,11 +187,11 @@ cd generation/scripts
 # Set your OpenRouter API key
 export OPENROUTER_API_KEY="your-key-here"
 
-# Query all models with 1000 personas (expensive! ~$100-500 depending on models)
-python 01_generate_synthetic_GSS.py --year 2024 --all-models --personas 1000
+# Query all models with 300 personas (expensive! ~$100-500 depending on models)
+python 01_generate_synthetic_GSS.py --year 2024 --models mistralai/mistral-nemo --personas 300
 
 # Or query specific models
-python 01_generate_synthetic_GSS.py --year 2024 --models "anthropic/claude-sonnet-4.5,openai/gpt-5" --personas 1000
+python 01_generate_synthetic_GSS.py --year 2024 --models "anthropic/claude-sonnet-4.5,openai/gpt-5" --personas 300
 
 # Return to project root
 cd ../..
@@ -281,7 +281,7 @@ Rscript analysis/scripts/master.R
 
 ### Missing GSS data file
 
-Download `gss7224_r1.dta` from https://gss.norc.org/get-the-data/stata.html and place in `generation/data/`.
+Download `gss7224_r3.dta` from https://gss.norc.org/get-the-data/stata.html and place in `generation/data/`.
 
 ### API rate limits
 
@@ -311,4 +311,4 @@ To modify or extend this project:
 - **Data Year**: 2024 (GSS wave)
 - **Models**: 28+ LLMs + human baseline
 - **Survey Items**: 52 questions (30 culture-war, 22 non-culture-war)
-- **Personas**: 1,000 synthetic respondents per model
+- **Personas**: 300 synthetic respondents per model

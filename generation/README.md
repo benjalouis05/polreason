@@ -11,7 +11,7 @@ This directory contains the data-preparation and model-querying workflow used to
 
 ## Required External Inputs
 
-- `data/gss7224_r1.dta`: the NORC GSS cumulative Stata file. This file is not tracked in Git.
+- `data/gss7224_r3.dta`: the NORC GSS cumulative Stata file. This file is not tracked in Git.
 - `OPENROUTER_API_KEY`: required for `01_generate_synthetic_GSS.py`.
 
 ## Core Commands
@@ -21,7 +21,7 @@ From `generation/scripts/`:
 ```bash
 Rscript 00a_create_gss_extract_multiyear.R --year 2024
 Rscript 00b_generate_personas.R
-python 01_generate_synthetic_GSS.py --year 2024 --all-models --personas 1000
+python 01_generate_synthetic_GSS.py --year 2024 --models mistralai/mistral-nemo --personas 300
 ```
 
 ## Directory Map

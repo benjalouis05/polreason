@@ -102,6 +102,7 @@ create_saturn_plot <- function(
     relevant_q        = c("Q90", "Q75", "Q50"),  # which quantiles to consider "relevant"
     delta_min         = 0.10,            # highlight if rho_model - rho_GSS >= delta_min
     top_n_per_q       = NULL,            # optional: keep only top-N by delta per quantile
+    raters_subset     = NULL,
     
     # Styling:
     spaghetti_alpha   = 0.12,
@@ -121,6 +122,9 @@ create_saturn_plot <- function(
           if (!is.null(top_n_per_q)) paste0(" | top_n_per_q: ", top_n_per_q) else "")
   
   raters <- available_raters(base_out_dir = base_out_dir, year = year)
+  if (!is.null(raters_subset)) {
+    raters <- raters[raters %in% raters_subset]
+  }
   if (!length(raters)) stop("No raters found in ", base_out_dir, " for year ", year)
   
   mac_summary <- data.table(
@@ -136,7 +140,7 @@ create_saturn_plot <- function(
   ellipse_data <- list()
   
   for (rater in raters) {
-    message("Processing: ", rater)
+    message("    -> Saturn plot for rater: ", rater)
     
     corr_list <- tryCatch(
       load_corr_for_rater(
@@ -637,9 +641,13 @@ create_belief_pair_grid <- function(
     year              = YEAR,
     prob              = 0.5,
     vars_subset       = NULL,
+    raters_subset     = NULL,
     llm_alpha         = 0.15,
     llm_width         = 0.3,
     llm_color         = "gray50",
+    highlight_rater   = NULL,
+    highlight_color   = "red",
+    highlight_width   = 0.8,
     gss_width         = 0.8,
     gss_color         = "black",
     ncol              = NULL,
@@ -789,6 +797,15 @@ create_belief_pair_grid <- function(
       geom_path(data = page_llm_dt, aes(x, y, group = group_id),
                 color = llm_color, alpha = llm_alpha,
                 linewidth = if (compact_mode) 0.2 else llm_width, lineend = "round") +
+      # Adding highlight layer
+      {if (!is.null(highlight_rater)) {
+        hi_dt <- page_llm_dt[rater == highlight_rater]
+        if (nrow(hi_dt) > 0) {
+          geom_path(data = hi_dt, aes(x, y, group = group_id),
+                    color = highlight_color, alpha = 0.8,
+                    linewidth = highlight_width, lineend = "round")
+        }
+      }} +
       {if (nrow(page_gss_dt) > 0) geom_path(data = page_gss_dt, aes(x, y, group = group_id),
                 color = gss_color, alpha = 1.0,
                 linewidth = if (compact_mode) 0.5 else gss_width, lineend = "round")} +
@@ -853,6 +870,8 @@ if (exists("BASE_OUT_DIR") && exists("BASE_VIZ_DIR") && exists("YEAR")) {
   message("Each quantile shown in separate panel for easy comparison")
   message("====================================================================\n")
   
+  target_raters <- c("gss", "Nemo_2", "mistralai_mistral-nemo")
+
   saturn_plot <- create_saturn_plot(
     base_out_dir   = BASE_OUT_DIR,
     base_viz_dir   = BASE_VIZ_DIR,
@@ -865,21 +884,22 @@ if (exists("BASE_OUT_DIR") && exists("BASE_VIZ_DIR") && exists("YEAR")) {
     delta_min      = 0.10,    # increase to highlight fewer, decrease to highlight more
     top_n_per_q    = 6L,      # set NULL to keep all above threshold
     
+    raters_subset  = target_raters,
     highlight_gss  = TRUE,
     save_pdf       = TRUE
   )
 
   # Optional: Facet grid overview (Q95 → Q5) - ultra-minimal horizontal strip
   # Uncomment to generate wide horizontal strip showing constraint evolution:
-  saturn_facet_grid <- create_saturn_facet_grid(
-    base_out_dir   = BASE_OUT_DIR,
-    base_viz_dir   = BASE_VIZ_DIR,
-    year           = YEAR,
-    quantile_seq   = seq(0.95, 0.05, by = -0.05),  # 19 quantiles, all in one row
-    llm_color      = "steelblue",
-    llm_alpha      = 0.3,
-    save_pdf       = TRUE
-  )
+  # saturn_facet_grid <- create_saturn_facet_grid(
+  #   base_out_dir   = BASE_OUT_DIR,
+  #   base_viz_dir   = BASE_VIZ_DIR,
+  #   year           = YEAR,
+  #   quantile_seq   = seq(0.95, 0.05, by = -0.05),  # 19 quantiles, all in one row
+  #   llm_color      = "steelblue",
+  #   llm_alpha      = 0.3,
+  #   save_pdf       = TRUE
+  # )
 
   # Belief pair grid - COMPACT VERSION for appendix (~10 landscape pages)
   # With readable labels at 15×12 = 180 pairs per page
@@ -889,6 +909,7 @@ if (exists("BASE_OUT_DIR") && exists("BASE_VIZ_DIR") && exists("YEAR")) {
     year           = YEAR,
     prob           = 0.5,
     vars_subset    = NULL,
+    raters_subset  = target_raters,
     llm_alpha      = 0.15,
     llm_color      = "gray50",
     gss_color      = "black",
