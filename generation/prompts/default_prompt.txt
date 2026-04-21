@@ -7,4 +7,4 @@ Question: {question}
 Options:
 {options_text}
 
-Respond with ONLY the number of your answer (e.g., "1" or "2"). Do not explain your reasoning.
+Keep in mind that human responses are extremely multifacted. Respond with ONLY the number of your answer (e.g., "1" or "2"). Do not explain your reasoning.

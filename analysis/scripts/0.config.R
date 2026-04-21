@@ -12,8 +12,8 @@ library(ggnewscale)
 library(irr)
 library(parallel)
 
-# Number of cores for parallel execution
-N_CORES <- pmax(1, parallel::detectCores() - 1) 
+# Number of cores for parallel execution (capped for cluster safety)
+N_CORES <- pmin(pmax(1, parallel::detectCores() - 1), 16) 
 
 # # --- helpers ------------------------------------------------------------ # #
 # helper: from a wide numeric DT, coerce all ord-vars to ordered factors

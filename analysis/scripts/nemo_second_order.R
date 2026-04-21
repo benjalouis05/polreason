@@ -27,7 +27,7 @@ p_saturn <- create_saturn_plot(
   relevant_q = c("Q90", "Q75", "Q50"),
   delta_min = 0.0, # Show Nemo everywhere
   top_n_per_q = NULL,
-  raters_subset = c("gss", "Nemo_2"),
+  raters_subset = c("gss", "Nemo_v3"),
   highlight_gss = TRUE,
   save_pdf = FALSE # We'll save as PNG manually
 )
@@ -50,8 +50,8 @@ p_custom <- create_belief_pair_grid(
   base_out_dir = BASE_OUT_DIR,
   year = YEAR,
   vars_subset = custom_vars,
-  raters_subset = c("gss", "Nemo_2"),
-  highlight_rater = "Nemo_2",
+  raters_subset = c("gss", "Nemo_v3"),
+  highlight_rater = "Nemo_v3",
   highlight_color = "steelblue", # Using a nice blue for Nemo
   highlight_width = 1.0,
   page_ncol = 5, page_nrow = 6, # 30 slots available, perfect for 28 pairs

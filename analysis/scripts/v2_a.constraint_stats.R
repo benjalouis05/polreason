@@ -525,7 +525,7 @@ PRINT_VARSETS <- get0("PRINT_VARSETS", ifnotfound = FALSE)
 
 # Discover which raters have directories of the form "<rater>-<year>"
 raters <- available_raters(base_out_dir = BASE_OUT_DIR, year = year)
-raters <- raters[raters %in% c("gss", "Nemo_2", "mistralai_mistral-nemo")]
+raters <- raters[raters %in% c("gss", "Nemo_2", "Nemo_v3", "mistralai_mistral-nemo")]
 
 if (!length(raters)) {
   warning("No rater directories found in ", BASE_OUT_DIR, " for year ", year)

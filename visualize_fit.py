@@ -23,6 +23,6 @@ for bar in bars:
 plt.tight_layout()
 
 # Save to artifact dir
-output_path = "/Users/benjaminsiegel/.gemini/antigravity/brain/91670977-3181-457d-90a9-f9993879ee22/mean_tvd_plot.png"
+output_path = "/Users/benjaminsiegel/.gemini/antigravity/brain/176d8b86-7b71-42a8-bf2c-bef49089e439/mean_tvd_plot.png"
 plt.savefig(output_path, dpi=300)
 print(f"Plot saved to {output_path}")

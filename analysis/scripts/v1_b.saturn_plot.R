@@ -870,7 +870,7 @@ if (exists("BASE_OUT_DIR") && exists("BASE_VIZ_DIR") && exists("YEAR")) {
   message("Each quantile shown in separate panel for easy comparison")
   message("====================================================================\n")
   
-  target_raters <- c("gss", "Nemo_2", "mistralai_mistral-nemo")
+  target_raters <- c("gss", "Nemo_2", "Nemo_v3", "mistralai_mistral-nemo")
 
   saturn_plot <- create_saturn_plot(
     base_out_dir   = BASE_OUT_DIR,
@@ -909,7 +909,7 @@ if (exists("BASE_OUT_DIR") && exists("BASE_VIZ_DIR") && exists("YEAR")) {
     year           = YEAR,
     prob           = 0.5,
     vars_subset    = NULL,
-    raters_subset  = target_raters,
+    raters_subset  = c("gss", "Nemo_2", "Nemo_v3", "mistralai_mistral-nemo"),
     llm_alpha      = 0.15,
     llm_color      = "gray50",
     gss_color      = "black",

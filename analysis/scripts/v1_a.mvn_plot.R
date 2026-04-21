@@ -579,17 +579,20 @@ plot_bvn_belief_pair <- function(
     plot_bootstraps = TRUE,
     plot_median     = TRUE,
     preloaded_corrs = NULL,
+    raters_available = NULL,
     ...
 ) {
-  raters_all <- available_raters(base_out_dir = base_out_dir, year = year)
+  if (is.null(raters_available)) {
+    raters_available <- available_raters(base_out_dir = base_out_dir, year = year)
+  }
   
-  has_gss <- "gss" %in% raters_all
-  non_gss <- setdiff(raters_all, "gss")
+  has_gss <- "gss" %in% raters_available
+  non_gss <- setdiff(raters_available, "gss")
   
   if (is.null(llms)) {
     llm_raters <- non_gss
   } else {
-    missing_llm <- setdiff(llms, raters_all)
+    missing_llm <- setdiff(llms, raters_available)
     if (length(missing_llm) > 0L) {
       warning("Some requested LLM raters not found on disk: ",
               paste(missing_llm, collapse = ", "))
@@ -632,6 +635,8 @@ plot_bvn_belief_pair <- function(
     legend_pt_lwd   = legend_pt_lwd,
     plot_bootstraps = plot_bootstraps,
     plot_median     = plot_median,
+    preloaded_corrs = preloaded_corrs,
+    raters_available = raters_available,
     main            = main_arg
   )
   
@@ -818,14 +823,15 @@ plot_all_bvn_pairs <- function(
       prob            = prob,
       llms            = llms,            
       legend_pt_lwd   = 1.5,
-      plot_bootstraps = plot_bootstraps,
-      plot_median     = plot_median,
-      preloaded_corrs = all_corrs,
+      plot_bootstraps  = plot_bootstraps,
+      plot_median      = plot_median,
+      preloaded_corrs  = all_corrs,
+      raters_available = raters_all,
       ...
     )
     dev.off()
     return(TRUE)
-  }, mc.cores = get0("N_CORES", ifnotfound = 1L))
+  }, mc.cores = get0("N_CORES", ifnotfound = 1L), mc.preschedule = FALSE)
   
   n_plotted <- sum(unlist(res))
   
@@ -849,5 +855,5 @@ plot_all_bvn_pairs(
   legend_outer    = TRUE,
   plot_bootstraps = FALSE,
   plot_median     = TRUE,
-  llms            = c("Nemo_2", "mistralai_mistral-nemo")
+  llms            = c("Nemo_2", "Nemo_v3", "mistralai_mistral-nemo")
 )

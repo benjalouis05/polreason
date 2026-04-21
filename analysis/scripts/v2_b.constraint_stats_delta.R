@@ -701,7 +701,7 @@ stopifnot(!is.null(persona_vars_global), length(persona_vars_global) > 0)
 
 # Discover which raters have directories of the form "<rater>-<year>"
 raters <- available_raters(base_out_dir = BASE_OUT_DIR, year = year)
-raters <- raters[raters %in% c("gss", "Nemo_2", "mistralai_mistral-nemo")]
+raters <- raters[raters %in% c("gss", "Nemo_2", "Nemo_v3", "mistralai_mistral-nemo")]
 
 if (!length(raters)) stop("No rater directories found in ", BASE_OUT_DIR, " for year ", year)
 

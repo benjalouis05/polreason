@@ -108,6 +108,6 @@ plt.grid(axis='x', linestyle='--', alpha=0.7)
 plt.tight_layout()
 
 # Save to artifact dir
-output_path = "/Users/benjaminsiegel/.gemini/antigravity/brain/9a21f01d-29fa-4cf3-aec9-2186b4e0aa4a/nemo_per_question_tvd_plot.png"
+output_path = "/Users/benjaminsiegel/.gemini/antigravity/brain/176d8b86-7b71-42a8-bf2c-bef49089e439/nemo_per_question_tvd_plot.png"
 plt.savefig(output_path, dpi=300)
 print(f"Plot saved to {output_path}")
